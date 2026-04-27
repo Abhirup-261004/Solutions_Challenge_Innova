@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   onAuthStateChanged,
+  signInWithPopup,
   signInWithEmailAndPassword,
   signOut
 } from 'firebase/auth';
@@ -164,6 +166,25 @@ function createLocalToken(user) {
   return `local-auth:${window.btoa(JSON.stringify(payload))}`;
 }
 
+function shouldFallbackToLocalAuth(error) {
+  const firebaseErrorCode = error?.code || '';
+  const message = String(error?.message || '').toLowerCase();
+
+  return [
+    'auth/configuration-not-found',
+    'auth/operation-not-allowed',
+    'auth/api-key-not-valid.-please-pass-a-valid-api-key.',
+    'auth/invalid-api-key'
+  ].includes(firebaseErrorCode) || message.includes('load failed') || message.includes('failed to fetch');
+}
+
+function isFirebaseOperationError(error) {
+  return Boolean(error?.code?.startsWith?.('auth/'));
+}
+
+const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
+
 export function useAuth() {
   return useContext(AuthContext);
 }
@@ -171,8 +192,9 @@ export function useAuth() {
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [useLocalAuthFallback, setUseLocalAuthFallback] = useState(false);
 
-  const isMockMode = !isFirebaseConfigured;
+  const isMockMode = !isFirebaseConfigured || useLocalAuthFallback;
 
   const setUserWithPersistence = (user) => {
     setCurrentUser(user);
@@ -217,11 +239,35 @@ export function AuthProvider({ children }) {
       return user;
     }
 
-    return createUserWithEmailAndPassword(auth, email, password).then(async (credential) => {
-      const liveUser = await syncLiveUserProfile(credential.user, role);
-      setCurrentUser(liveUser);
-      return credential;
-    });
+    try {
+      const credential = await createUserWithEmailAndPassword(auth, email, password);
+      try {
+        const liveUser = await syncLiveUserProfile(credential.user, role);
+        setCurrentUser(liveUser);
+        return credential;
+      } catch (profileError) {
+        if (shouldFallbackToLocalAuth(profileError)) {
+          console.warn('Firebase signup worked, but profile sync failed. Falling back to local demo auth.', profileError);
+          setUseLocalAuthFallback(true);
+          const user = createLocalUser(email, role);
+          setUserWithPersistence(user);
+          return user;
+        }
+
+        setCurrentUser(attachBilling(attachRole(credential.user, role)));
+        return credential;
+      }
+    } catch (error) {
+      if (shouldFallbackToLocalAuth(error)) {
+        console.warn('Falling back to local demo auth for signup because Firebase Auth is not fully configured.', error);
+        setUseLocalAuthFallback(true);
+        const user = createLocalUser(email, role);
+        setUserWithPersistence(user);
+        return user;
+      }
+
+      throw error;
+    }
   };
 
   const login = async (email, password, role = 'viewer') => {
@@ -231,11 +277,77 @@ export function AuthProvider({ children }) {
       return user;
     }
 
-    return signInWithEmailAndPassword(auth, email, password).then(async (credential) => {
-      const liveUser = await loadLiveUserProfile(credential.user);
-      setCurrentUser(liveUser);
-      return credential;
-    });
+    try {
+      const credential = await signInWithEmailAndPassword(auth, email, password);
+      try {
+        const liveUser = await loadLiveUserProfile(credential.user);
+        setCurrentUser(liveUser);
+        return credential;
+      } catch (profileError) {
+        if (shouldFallbackToLocalAuth(profileError)) {
+          console.warn('Firebase login worked, but profile load failed. Falling back to local demo auth.', profileError);
+          setUseLocalAuthFallback(true);
+          const user = createLocalUser(email, role);
+          setUserWithPersistence(user);
+          return user;
+        }
+
+        setCurrentUser(attachBilling(attachRole(credential.user, 'viewer')));
+        return credential;
+      }
+    } catch (error) {
+      if (shouldFallbackToLocalAuth(error)) {
+        console.warn('Falling back to local demo auth for login because Firebase Auth is not fully configured.', error);
+        setUseLocalAuthFallback(true);
+        const user = createLocalUser(email, role);
+        setUserWithPersistence(user);
+        return user;
+      }
+
+      throw error;
+    }
+  };
+
+  const loginWithGoogle = async (role = 'viewer', mode = 'login') => {
+    if (isMockMode) {
+      const user = createLocalUser(`google_${Date.now()}@demo.local`, role);
+      setUserWithPersistence(user);
+      return user;
+    }
+
+    try {
+      const credential = await signInWithPopup(auth, googleProvider);
+
+      try {
+        const liveUser = mode === 'signup'
+          ? await syncLiveUserProfile(credential.user, role)
+          : await loadLiveUserProfile(credential.user);
+
+        setCurrentUser(liveUser);
+        return credential;
+      } catch (profileError) {
+        if (shouldFallbackToLocalAuth(profileError)) {
+          console.warn('Google sign-in worked, but profile sync failed. Falling back to local demo auth.', profileError);
+          setUseLocalAuthFallback(true);
+          const user = createLocalUser(credential.user.email || `google_${Date.now()}@demo.local`, role);
+          setUserWithPersistence(user);
+          return user;
+        }
+
+        setCurrentUser(attachBilling(attachRole(credential.user, mode === 'signup' ? role : 'viewer')));
+        return credential;
+      }
+    } catch (error) {
+      if (shouldFallbackToLocalAuth(error)) {
+        console.warn('Falling back to local demo auth for Google sign-in because Firebase Auth is not fully configured.', error);
+        setUseLocalAuthFallback(true);
+        const user = createLocalUser(`google_${Date.now()}@demo.local`, role);
+        setUserWithPersistence(user);
+        return user;
+      }
+
+      throw error;
+    }
   };
 
   const logout = async () => {
@@ -342,7 +454,12 @@ export function AuthProvider({ children }) {
         setCurrentUser(liveUser);
       } catch (error) {
         console.error('Failed to load Firebase user profile:', error);
-        setCurrentUser(attachRole(user, 'viewer'));
+        if (shouldFallbackToLocalAuth(error) && !isFirebaseOperationError(error)) {
+          setUseLocalAuthFallback(true);
+          setCurrentUser(readStoredUser());
+        } else {
+          setCurrentUser(attachBilling(attachRole(user, 'viewer')));
+        }
       } finally {
         setLoading(false);
       }
@@ -352,12 +469,14 @@ export function AuthProvider({ children }) {
   }, [isMockMode]);
 
   const value = {
+    authMode: isMockMode ? 'demo' : 'firebase',
     currentUser,
     updateBilling,
     getToken,
     hasPermission,
     hasPlanFeature,
     login,
+    loginWithGoogle,
     logout,
     signup,
     updateRole

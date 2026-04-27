@@ -1,6 +1,32 @@
-const DEFAULT_API_BASE_URL = 'http://localhost:8000';
+const LOCAL_API_BASE_URL = 'http://localhost:8000';
+const VERCEL_BACKEND_PREFIX = '/_/backend';
 
-export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL).replace(/\/$/, '');
+function resolveApiBaseUrl() {
+  const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL;
+  if (configuredBaseUrl) {
+    return configuredBaseUrl.replace(/\/$/, '');
+  }
+
+  if (typeof window === 'undefined') {
+    return LOCAL_API_BASE_URL;
+  }
+
+  const hostname = window.location.hostname;
+  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+
+  if (isLocalhost) {
+    return LOCAL_API_BASE_URL;
+  }
+
+  const isVercelPreview = hostname.endsWith('.vercel.app');
+  if (isVercelPreview) {
+    return VERCEL_BACKEND_PREFIX;
+  }
+
+  return LOCAL_API_BASE_URL;
+}
+
+export const API_BASE_URL = resolveApiBaseUrl();
 
 export class ApiError extends Error {
   constructor(message, status = 0, payload = null) {
@@ -20,7 +46,8 @@ export function buildApiUrl(path = '') {
     return path;
   }
 
-  return `${API_BASE_URL}${String(path).startsWith('/') ? path : `/${path}`}`;
+  const normalizedPath = String(path).startsWith('/') ? path : `/${path}`;
+  return `${API_BASE_URL}${normalizedPath}`;
 }
 
 async function parseResponse(response) {
@@ -85,7 +112,7 @@ export async function requestJson(path, options = {}) {
       throw error;
     }
 
-    throw new ApiError(error.message || 'Unable to connect to the server.');
+    throw new ApiError(error.message || `Unable to connect to the server at ${API_BASE_URL}.`);
   } finally {
     clearTimeout(timeout);
   }

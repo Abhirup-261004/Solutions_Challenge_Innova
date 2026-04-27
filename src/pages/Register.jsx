@@ -12,7 +12,7 @@ export default function Register() {
   const [role, setRole] = useState('viewer');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signup } = useAuth();
+  const { signup, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   async function handleSubmit(e) {
@@ -29,6 +29,19 @@ export default function Register() {
       navigate('/dashboard');
     } catch (err) {
       setError('Failed to create an account: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGoogleSignUp() {
+    try {
+      setError('');
+      setLoading(true);
+      await loginWithGoogle(role, 'signup');
+      navigate('/dashboard');
+    } catch (err) {
+      setError('Failed to sign up with Google: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -110,6 +123,46 @@ export default function Register() {
             Sign Up
           </button>
         </form>
+
+        <div style={{ display: 'grid', gap: '0.9rem', marginTop: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+            <span className="text-muted" style={{ fontSize: '0.8rem' }}>or continue with</span>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleSignUp}
+            disabled={loading}
+            className="input-field"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.7rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              background: 'rgba(255,255,255,0.04)'
+            }}
+          >
+            <span style={{
+              width: '20px',
+              height: '20px',
+              borderRadius: '999px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: '#fff',
+              color: '#4285f4',
+              fontSize: '0.85rem',
+              fontWeight: 800
+            }}>
+              G
+            </span>
+            Sign up with Google
+          </button>
+        </div>
 
         <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.9rem' }}>
           <span className="text-muted">Already have an account? </span>

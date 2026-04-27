@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useAuth, roleDefinitions } from '../contexts/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { Lock, Mail, ShieldCheck } from 'lucide-react';
-import { isFirebaseConfigured } from '../firebase';
 
 const roleOptions = Object.entries(roleDefinitions);
 
@@ -12,7 +11,7 @@ export default function Login() {
   const [role, setRole] = useState('admin');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, loginWithGoogle, authMode } = useAuth();
   const navigate = useNavigate();
 
   async function handleSubmit(e) {
@@ -24,6 +23,19 @@ export default function Login() {
       navigate('/dashboard');
     } catch (err) {
       setError('Failed to log in: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGoogleSignIn() {
+    try {
+      setError('');
+      setLoading(true);
+      await loginWithGoogle(role, 'login');
+      navigate('/dashboard');
+    } catch (err) {
+      setError('Failed to sign in with Google: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -72,7 +84,7 @@ export default function Login() {
             </div>
           </div>
 
-          {!isFirebaseConfigured ? (
+          {authMode !== 'firebase' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <label style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Demo Role</label>
               <div style={{ position: 'relative' }}>
@@ -94,11 +106,11 @@ export default function Login() {
                   type="text"
                   className="input-field"
                   style={{ paddingLeft: '48px' }}
-                  value="Loaded from your Firebase-authenticated profile"
+                  value="Role will load from your account after sign-in"
                   readOnly
                 />
               </div>
-              <p className="text-muted" style={{ fontSize: '0.8rem' }}>Firebase handles sign-in, and MongoDB stores the role profile for this account.</p>
+              <p className="text-muted" style={{ fontSize: '0.8rem' }}>Google or email sign-in authenticates the account first, then the app loads the saved role profile.</p>
             </div>
           )}
 
@@ -106,6 +118,46 @@ export default function Login() {
             Sign In
           </button>
         </form>
+
+        <div style={{ display: 'grid', gap: '0.9rem', marginTop: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+            <span className="text-muted" style={{ fontSize: '0.8rem' }}>or continue with</span>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+            className="input-field"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.7rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              background: 'rgba(255,255,255,0.04)'
+            }}
+          >
+            <span style={{
+              width: '20px',
+              height: '20px',
+              borderRadius: '999px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: '#fff',
+              color: '#4285f4',
+              fontSize: '0.85rem',
+              fontWeight: 800
+            }}>
+              G
+            </span>
+            Sign in with Google
+          </button>
+        </div>
 
         <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.9rem' }}>
           <span className="text-muted">Need an account? </span>
