@@ -50,6 +50,16 @@ if (!isMongoConfigured()) {
   console.warn('MongoDB Atlas is not configured. Backend is using in-memory demo data.');
 }
 
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Relief Operations backend is running.',
+    docs: {
+      health: '/api/health'
+    }
+  });
+});
+
 app.get('/api/health', (req, res) => {
   res.json({
     success: true,
