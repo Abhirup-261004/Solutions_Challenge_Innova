@@ -1,16 +1,106 @@
-# React + Vite
+# Relief Operations Platform
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This project is split into:
 
-Currently, two official plugins are available:
+- frontend at the repo root: React + Vite, intended for Vercel
+- backend in `backend/`: Node + Express + MongoDB, intended for Render
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Local setup
 
-## React Compiler
+Frontend `.env`
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```env
+VITE_API_BASE_URL=http://localhost:8000
+VITE_FIREBASE_API_KEY=your_web_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+```
 
-## Expanding the ESLint configuration
+Backend `backend/.env`
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```env
+PORT=8000
+FRONTEND_ORIGIN=http://localhost:5173
+MONGODB_URI=your_mongodb_uri
+GEMINI_API_KEY=your_gemini_api_key
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project-id.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY\n-----END PRIVATE KEY-----\n"
+```
+
+Run locally:
+
+```bash
+npm install
+cd backend && npm install
+npm run dev
+cd backend && npm run dev
+```
+
+## Deploy backend on Render
+
+Use the included `render.yaml` or create a new Web Service manually.
+
+Settings:
+
+- Root Directory: `backend`
+- Build Command: `npm install`
+- Start Command: `npm start`
+- Health Check Path: `/api/health`
+
+Set these environment variables in Render:
+
+- `PORT=10000`
+- `FRONTEND_ORIGIN=https://your-frontend-domain.vercel.app`
+- `MONGODB_URI=...`
+- `GEMINI_API_KEY=...`
+- `FIREBASE_PROJECT_ID=...`
+- `FIREBASE_CLIENT_EMAIL=...`
+- `FIREBASE_PRIVATE_KEY=...`
+
+After deployment, note your backend URL, for example:
+
+`https://solutions-challenge-backend.onrender.com`
+
+## Deploy frontend on Vercel
+
+Import the root project directory into Vercel.
+
+Framework preset:
+
+- `Vite`
+
+Build settings:
+
+- Build Command: `npm run build`
+- Output Directory: `dist`
+
+Set these environment variables in Vercel:
+
+- `VITE_API_BASE_URL=https://your-render-backend.onrender.com`
+- `VITE_FIREBASE_API_KEY=...`
+- `VITE_FIREBASE_AUTH_DOMAIN=...`
+- `VITE_FIREBASE_PROJECT_ID=...`
+- `VITE_FIREBASE_STORAGE_BUCKET=...`
+- `VITE_FIREBASE_MESSAGING_SENDER_ID=...`
+- `VITE_FIREBASE_APP_ID=...`
+
+The included `vercel.json` ensures client-side routes work when users refresh nested pages.
+
+## Deployment order
+
+1. Deploy backend to Render
+2. Copy the Render backend URL
+3. Add that URL as `VITE_API_BASE_URL` in Vercel
+4. Deploy frontend to Vercel
+5. Update `FRONTEND_ORIGIN` in Render to the final Vercel domain
+
+## Post-deploy checks
+
+- Open `https://your-render-backend.onrender.com/api/health`
+- Open the Vercel site and verify dashboard data loads
+- Test login and protected actions
+- Test API flows that require Firebase authentication

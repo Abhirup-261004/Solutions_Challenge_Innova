@@ -6,7 +6,33 @@ const { getMongoError, isMongoConfigured } = require('./config/db');
 
 const app = express();
 
-app.use(cors());
+function parseAllowedOrigins() {
+  const rawOrigins = [
+    process.env.FRONTEND_ORIGIN,
+    process.env.FRONTEND_ORIGINS
+  ]
+    .filter(Boolean)
+    .join(',');
+
+  return rawOrigins
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
+const allowedOrigins = parseAllowedOrigins();
+
+app.set('trust proxy', 1);
+
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  }
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -23,6 +49,15 @@ if (mongoError) {
 if (!isMongoConfigured()) {
   console.warn('MongoDB Atlas is not configured. Backend is using in-memory demo data.');
 }
+
+app.get('/api/health', (req, res) => {
+  res.json({
+    success: true,
+    status: 'ok',
+    mongoConfigured: isMongoConfigured(),
+    firebaseAdminReady: !firebaseAdminError
+  });
+});
 
 app.use(routes);
 
