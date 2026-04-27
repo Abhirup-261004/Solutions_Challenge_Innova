@@ -11,7 +11,7 @@ export default function Login() {
   const [role, setRole] = useState('admin');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, loginWithGoogle, authMode } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   async function handleSubmit(e) {
@@ -84,35 +84,20 @@ export default function Login() {
             </div>
           </div>
 
-          {authMode !== 'firebase' ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <label style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Demo Role</label>
-              <div style={{ position: 'relative' }}>
-                <ShieldCheck size={18} style={{ position: 'absolute', left: '16px', top: '16px', color: 'var(--text-muted)' }} />
-                <select className="input-field" style={{ paddingLeft: '48px', appearance: 'none' }} value={role} onChange={(e) => setRole(e.target.value)}>
-                  {roleOptions.map(([value, meta]) => (
-                    <option key={value} value={value}>{meta.label}</option>
-                  ))}
-                </select>
-              </div>
-              <p className="text-muted" style={{ fontSize: '0.8rem' }}>{roleDefinitions[role].description}</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Role View</label>
+            <div style={{ position: 'relative' }}>
+              <ShieldCheck size={18} style={{ position: 'absolute', left: '16px', top: '16px', color: 'var(--text-muted)' }} />
+              <select className="input-field" style={{ paddingLeft: '48px', appearance: 'none' }} value={role} onChange={(e) => setRole(e.target.value)}>
+                {roleOptions.map(([value, meta]) => (
+                  <option key={value} value={value}>{meta.label}</option>
+                ))}
+              </select>
             </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <label style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Access Role</label>
-              <div style={{ position: 'relative' }}>
-                <ShieldCheck size={18} style={{ position: 'absolute', left: '16px', top: '16px', color: 'var(--text-muted)' }} />
-                <input
-                  type="text"
-                  className="input-field"
-                  style={{ paddingLeft: '48px' }}
-                  value="Role will load from your account after sign-in"
-                  readOnly
-                />
-              </div>
-              <p className="text-muted" style={{ fontSize: '0.8rem' }}>Google or email sign-in authenticates the account first, then the app loads the saved role profile.</p>
-            </div>
-          )}
+            <p className="text-muted" style={{ fontSize: '0.8rem' }}>
+              {roleDefinitions[role].description} If this account already has a saved role, the system will load that after sign-in.
+            </p>
+          </div>
 
           <button disabled={loading} type="submit" className="btn-primary" style={{ marginTop: '1rem', width: '100%', padding: '14px' }}>
             Sign In
