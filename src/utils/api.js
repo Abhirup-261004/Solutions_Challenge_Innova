@@ -1,5 +1,4 @@
 const LOCAL_API_BASE_URL = 'http://localhost:8000';
-const VERCEL_BACKEND_PREFIX = '/_/backend';
 
 function resolveApiBaseUrl() {
   const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL;
@@ -18,12 +17,7 @@ function resolveApiBaseUrl() {
     return LOCAL_API_BASE_URL;
   }
 
-  const isVercelPreview = hostname.endsWith('.vercel.app');
-  if (isVercelPreview) {
-    return VERCEL_BACKEND_PREFIX;
-  }
-
-  return LOCAL_API_BASE_URL;
+  return '';
 }
 
 export const API_BASE_URL = resolveApiBaseUrl();
@@ -112,7 +106,13 @@ export async function requestJson(path, options = {}) {
       throw error;
     }
 
-    throw new ApiError(error.message || `Unable to connect to the server at ${API_BASE_URL}.`);
+    throw new ApiError(
+      error.message || (
+        API_BASE_URL
+          ? `Unable to connect to the server at ${API_BASE_URL}.`
+          : 'Unable to connect to the server. Set VITE_API_BASE_URL to your Render backend URL in Vercel.'
+      )
+    );
   } finally {
     clearTimeout(timeout);
   }

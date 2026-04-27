@@ -20,13 +20,46 @@ function parseAllowedOrigins() {
     .filter(Boolean);
 }
 
+function normalizeOriginValue(origin) {
+  return String(origin || '').trim().replace(/\/$/, '');
+}
+
+function originMatchesRule(origin, rule) {
+  const normalizedOrigin = normalizeOriginValue(origin);
+  const normalizedRule = normalizeOriginValue(rule);
+
+  if (!normalizedOrigin || !normalizedRule) {
+    return false;
+  }
+
+  if (normalizedRule === '*') {
+    return true;
+  }
+
+  if (normalizedRule.startsWith('*.')) {
+    try {
+      const { hostname } = new URL(normalizedOrigin);
+      const suffix = normalizedRule.slice(2);
+      return hostname === suffix || hostname.endsWith(`.${suffix}`);
+    } catch {
+      return false;
+    }
+  }
+
+  return normalizedOrigin === normalizedRule;
+}
+
 const allowedOrigins = parseAllowedOrigins();
 
 app.set('trust proxy', 1);
 
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+    if (
+      !origin ||
+      allowedOrigins.length === 0 ||
+      allowedOrigins.some((rule) => originMatchesRule(origin, rule))
+    ) {
       return callback(null, true);
     }
 

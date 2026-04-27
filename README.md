@@ -88,7 +88,7 @@ Set these environment variables in Vercel:
 - `VITE_FIREBASE_MESSAGING_SENDER_ID=...`
 - `VITE_FIREBASE_APP_ID=...`
 
-The included `vercel.json` ensures client-side routes work when users refresh nested pages.
+The included `vercel.json` only handles client-side route rewrites for the Vite app. The frontend should call the Render backend through `VITE_API_BASE_URL`.
 
 ## Deployment order
 
